@@ -21,10 +21,9 @@ RAWDATA = "creditcard.csv"
 #	instance.getTraining()
 #	instance.getTesting()
 read1 = ReadData(RAWDATA, DATALOC)
+tests = read1.getTesting()
+train = read1.getTraining()
 
-
-#print("reading rawdata")
-#READRAW = read_csv(DATALOC + RAWDATA)
 
 
 
