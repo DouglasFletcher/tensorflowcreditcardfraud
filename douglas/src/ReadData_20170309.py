@@ -2,7 +2,6 @@
 # ========================
 # douglas fletcher
 # date: 2017.03.09
-# purpose: model methods
 # ========================
 
 print("reading pandas library...")
