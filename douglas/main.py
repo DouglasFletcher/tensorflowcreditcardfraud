@@ -14,7 +14,7 @@ import os
 from src.ReadData_20170309 import ReadData
 from src.DataInvestigate_20170309 import DataInvestigate
 from src.CreateDataset_20170315 import CreateDataset
-
+from src.CreateSimpleNeuralNet_20170315 import CreateSimpleNeuralNet
 
 # globals
 WORKDIR = os.getcwd()
@@ -36,6 +36,8 @@ AMOUNTVAR = "Amount"
 LABELSVAR = "Class"
 FEATRSVAR = list(set(train.columns).difference(set([PERIODVAR, AMOUNTVAR, LABELSVAR])))
 dataInvestObj = DataInvestigate(train, PERIODVAR, AMOUNTVAR, LABELSVAR, FEATRSVAR)
+# strange bug after running this method... need to investigate
+# although graphs show fine
 #dataInvestObj.distFeaturesByLabel()
 
 # ======================
@@ -43,6 +45,14 @@ dataInvestObj = DataInvestigate(train, PERIODVAR, AMOUNTVAR, LABELSVAR, FEATRSVA
 # ======================
 testsTrans = CreateDataset(tests).runTransforms()
 trainTrans = CreateDataset(train).runTransforms()
+
+# =======================
+# create simple NeuralNet
+# =======================
+neuralNet = CreateSimpleNeuralNet(testsTrans).runSimpleNeuralNet()
+
+
+
 
 
 
