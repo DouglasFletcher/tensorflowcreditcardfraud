@@ -15,6 +15,7 @@ class DataInvestigate:
 	i.e. distribution of features & 
 	amounts by each label add methods  
 	as questions arise :)
+	would rather change this to tableau
 	"""
 	@classmethod
 	def __init__(self, dataset, periodvar, amountvar, labelsvar, featrsvar):

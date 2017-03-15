@@ -13,6 +13,7 @@ import os
 # local classes
 from src.ReadData_20170309 import ReadData
 from src.DataInvestigate_20170309 import DataInvestigate
+from src.CreateDataset_20170315 import CreateDataset
 
 
 # globals
@@ -37,6 +38,11 @@ FEATRSVAR = list(set(train.columns).difference(set([PERIODVAR, AMOUNTVAR, LABELS
 dataInvestObj = DataInvestigate(train, PERIODVAR, AMOUNTVAR, LABELSVAR, FEATRSVAR)
 #dataInvestObj.distFeaturesByLabel()
 
-# different distributions
-#[,"V2","V3","V4","V5","V6","V7","V9","V10","V11","V12","V14","V16","V17","V18","V19"]
+# ======================
+# create transformations
+# ======================
+testsTrans = CreateDataset(tests).runTransforms()
+trainTrans = CreateDataset(train).runTransforms()
+
+
 
