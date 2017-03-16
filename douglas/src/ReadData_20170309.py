@@ -4,21 +4,17 @@
 # date: 2017.03.09
 # ========================
 
-print("reading pandas library...")
-from pandas import read_csv, DataFrame
+print("reading ReadData...")
 
-
-print("importing modelMethod dependencies...")
+from pandas import read_csv
 
 class ReadData:
 	"""
 	# douglas fletcher
 	# pupose: readdata class:
-		Using simpleton pattern 
-		create class which is used for 
-		reading data, and default methods 
-		for getting training & testing data
-		returning pandas dataframe.
+		Using simpleton pattern create class which is used for 
+		reading data, and default methods for getting training 
+		& testing data returning pandas dataframe.
 	# date: 2017.03.09
 	"""
 	readDataInst = None
@@ -43,12 +39,9 @@ class ReadData:
 		# def get method
 		return self.readDataInst.getData()[1]
 
-
-
 	class __ReadData:
 		"""
-		__init__ 
-			as simpleton design pattern	
+		__init__ : as simpleton design pattern	
 		"""	
 
 		@classmethod
@@ -79,9 +72,6 @@ class ReadData:
 			# getdata as list
 			return self.outdata
 		
-
-
-print("dependencies ready to use.")
 
 # example: create ReadData object
 # read1 = ReadData(RAWDATAFILE, DATALOCATION)

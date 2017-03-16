@@ -4,6 +4,8 @@
 # date: 2017.03.15
 # ========================
 
+print("reading DataInvestigate...")
+
 import seaborn as sns
 import matplotlib.pyplot as plt
 
