@@ -36,8 +36,8 @@ AMOUNTVAR = "Amount"
 LABELSVAR = "Class"
 FEATRSVAR = list(set(train.columns).difference(set([PERIODVAR, AMOUNTVAR, LABELSVAR])))
 dataInvestObj = DataInvestigate(train, PERIODVAR, AMOUNTVAR, LABELSVAR, FEATRSVAR)
-# strange bug after running this method... need to investigate
-# although graphs show fine
+# strange bug after running this method... 
+# need to investigate but graphs show fine
 #dataInvestObj.distFeaturesByLabel()
 
 # ======================
@@ -49,9 +49,7 @@ trainTrans = CreateDataset(train).runTransforms()
 # =======================
 # create simple NeuralNet
 # =======================
-neuralNet = CreateSimpleNeuralNet(testsTrans).runSimpleNeuralNet()
-
-
+neuralNet = CreateSimpleNeuralNet(trainTrans, testsTrans, 5, 10000).runSimpleNeuralNet()
 
 
 

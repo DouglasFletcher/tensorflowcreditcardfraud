@@ -25,6 +25,7 @@ class DataInvestigate:
 		dataset has datatype categories:
 		reference for later use
 		"""
+		print("\ncreating dataInvestigate instance")
 		self.dataset = dataset
 		self.periodvar = periodvar
 		self.amountvar = amountvar 

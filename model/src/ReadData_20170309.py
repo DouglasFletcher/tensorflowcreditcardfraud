@@ -23,20 +23,19 @@ class ReadData:
 	def __init__(self, fileName, fileLoc):
 		# __init singleton
 		if not self.readDataInst:
-			print("creating object")
 			self.readDataInst = self.__ReadData(fileName, fileLoc)
-			self.readDataInst.createData()
-		else:
-			print("getting instance...")
+			self.readDataInst.__createData()
 
 	@classmethod
 	def getTraining(self):
 		# def get method
+		print("\treturning raw training data")
 		return self.readDataInst.getData()[0]
 
 	@classmethod
 	def getTesting(self):
 		# def get method
+		print("\treturning raw testing data")
 		return self.readDataInst.getData()[1]
 
 	class __ReadData:
@@ -53,19 +52,25 @@ class ReadData:
 			self.outdata = []
 
 		@classmethod
-		def createData(self):
+		def __createData(self):
 			# read data file training & test
-			print("reading rawdata")
+			print("\nreading rawdata")
 			try:
 				tempRead = read_csv(self.fileLoc + self.fileName)
 				rowLen = len(tempRead)
-				print("%s rows read from file" %(rowLen))
-				print("saving training data - 70% of rawdata")
-				self.outdata.append(tempRead[:int(rowLen * 0.7)])
-				print("saving test data - 30% of rawdata")			
-				self.outdata.append(tempRead[int(rowLen * 0.7):])
+				print("\t%s rows read from file" %(rowLen))
+				# train set
+				print("\tsaving training data - 70% of rawdata")
+				train = tempRead[:int(rowLen * 0.7)]
+				train.name = "train"
+				self.outdata.append(train)
+				# test
+				print("\tsaving test data - 30% of rawdata")			
+				tests = tempRead[int(rowLen * 0.7):]
+				tests.name = "tests"
+				self.outdata.append(tests)
 			except:
-				print("file/location: cannot be found")
+				print("\tfile/location: cannot be found")
 
 		@classmethod
 		def getData(self):
