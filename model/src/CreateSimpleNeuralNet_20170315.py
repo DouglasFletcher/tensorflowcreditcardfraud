@@ -75,7 +75,8 @@ class CreateSimpleNeuralNet:
 		l1 = tf.add(tf.matmul(trainIn, hiddenLayer1["weights"]), hiddenLayer1["biases"])
 		l1 = tf.sigmoid(l1)
 		l2 = tf.add(tf.matmul(l1, outputLayer["weights"]), outputLayer["biases"])
-		output = tf.sigmoid(l2)
+		#output = tf.sigmoid(l2)
+		output = tf.nn.softmax(l2)
 		# 3. define optimization specifications 
 		error = tf.sub(output, trainOut)
 		cost = tf.reduce_mean(tf.square(error))
@@ -83,6 +84,16 @@ class CreateSimpleNeuralNet:
 		# 4. save defined model
 		self.defModel = [trainIn, trainOut, output, cost, optimizer]
 
+		"""
+		y = tf.nn.softmax(tf.matmul(inp, weights) + bias)
+
+		y_ = tf.placeholder(tf.float32, [None, 3])
+		cross_entropy = -tf.reduce_sum(y_*tf.log(y))
+
+		train_step = tf.train.AdamOptimizer(0.01).minimize(cross_entropy)
+		correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
+		accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+		"""
 
 	@classmethod
 	def __runNeuralNet(self):
@@ -103,6 +114,7 @@ class CreateSimpleNeuralNet:
 			as just taking non-replacement sampling of all the dataset, so
 			at least every data point is sampled once. Note the data was 
 			randomly ordered in 2.
+		5. save results
 		"""
 		print("\trunning neural network")
 		# 1. define tensorflow session
@@ -136,7 +148,7 @@ class CreateSimpleNeuralNet:
 				)
 				epochLoss += loss
 			print("\t\tEpoch loss:", epochLoss)
-		# save result set
+		# 5. save result set
 		self.defModel = [trainIn, trainOut, output]+costAndOpt 
 		# close session
 		sess.close()
@@ -147,24 +159,39 @@ class CreateSimpleNeuralNet:
 		"""
 		test defined model
 		1. define tensor flow session
-		2. test for accuracy:
+		2. prepare test data:
+			get test data as test for accuracy
+		3. test set predictions:
 			use the test data & the trained model to 
 			test for the accuracy of the prediction
+		4. model accuracy:
+			use argmax as way to transform from probabilites 
+			in range [0,1] from logistic to binary {0,1} and
+			check count of equal allocations 
+		5. save predictions:
+			output results
 		"""
 		print("\ttesting neural network")
 		# 1. define tensorflow session
 		sess = tf.Session()
 		init = tf.global_variables_initializer()
 		sess.run(init)
-		# 2. test for accuracy
+		# 2. prepare test data
 		testAct = self.testset
 		testFeatures = testAct[testAct.columns[0:18]].values.tolist()
-		testLabelVal = testAct[testAct.columns[18:]].values.tolist()
+		testLabelAct = testAct[testAct.columns[18:]].values.tolist()
+		# 3. test set predictions
 		feed_dict = {self.defModel[0]: testFeatures}
-		classification = sess.run(self.defModel[2], feed_dict)
-		self.resModel = classification
+		outTest   = sess.run(self.defModel[2], feed_dict).tolist()
+		binaryOutPred = sess.run(tf.to_float(tf.greater(outTest, 0.5))).tolist()
+		# 4. model accuracy
+		equalPred = sess.run(tf.equal(binaryOutPred, testLabelAct)).tolist()
+		accuracyMPred = sess.run(tf.reduce_mean(tf.cast(equalPred, "float")))
 		print("model accuracy:")
-		print(1)
+		print(accuracyMPred)
+		# 5. save predictions
+		self.resModel = [outTest, binaryOutPred, testLabelAct]
+		sess.close()
 
 
 	@classmethod
