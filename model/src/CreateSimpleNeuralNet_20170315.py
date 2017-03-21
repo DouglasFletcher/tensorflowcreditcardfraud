@@ -30,7 +30,7 @@ class CreateSimpleNeuralNet:
 		# model parameters
 		self.trainEpochs = trainEpochs
 		self.batchSize = batchSize
-		self.learningRate = 0.1
+		self.learningRate = 0.01
 		# network structure: need to make dynamic 
 		# (__defineNeuralNet has dependency)
 		self.nodes = [18]
@@ -53,7 +53,8 @@ class CreateSimpleNeuralNet:
 			run. In this case, l1 is a 18 node with linear transformation with 
 			18 weights & bias (e.g. x * weights + bias) for each node. Next a 
 			sigmoid transformation. l2 transformation is linear transformation 
-			on l1 output with weights & biases with sigmoid
+			on l1 output with weights & biases but then softmax transformation 
+			(this will give normalized probability values e.g. [0.8, 0.2])
 		3. define optimization specifications: 
 			optimize weights with feedback loop (backpropagation) using predefined 
 			tensor flow methods.
@@ -65,35 +66,26 @@ class CreateSimpleNeuralNet:
 		trainOut = tf.placeholder("float")
 		hiddenLayer1 = {
 			  "weights": tf.Variable(tf.random_normal([self.nodes[0], self.nodes[0]]))
-			, "biases": tf.Variable(tf.random_normal([self.nodes[0]]))
+			, "biases": tf.Variable(tf.zeros([self.nodes[0]]))
 		}
 		outputLayer = {
-			"weights": tf.Variable(tf.random_normal([self.nodes[0], 1]))
-			, "biases": tf.Variable(tf.random_normal([1]))
+			"weights": tf.Variable(tf.random_normal([self.nodes[0], 2]))
+			, "biases": tf.Variable(tf.zeros([2]))
 		}
 		# 2. define tensor model
 		l1 = tf.add(tf.matmul(trainIn, hiddenLayer1["weights"]), hiddenLayer1["biases"])
 		l1 = tf.sigmoid(l1)
 		l2 = tf.add(tf.matmul(l1, outputLayer["weights"]), outputLayer["biases"])
-		output = tf.sigmoid(l2)
-		#output = tf.nn.softmax(l2)
+		output = tf.nn.softmax(l2)
 		# 3. define optimization specifications 
-		error = tf.sub(output, trainOut)
-		cost = tf.reduce_mean(tf.square(error))
-		optimizer = tf.train.GradientDescentOptimizer(self.learningRate).minimize(cost)
+		#error = tf.sub(output, trainOut)
+		#cost = tf.reduce_mean(tf.square(error))
+		#optimizer = tf.train.GradientDescentOptimizer(self.learningRate).minimize(cost)
+		cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, trainOut))
+		optimizer = tf.train.AdamOptimizer(self.learningRate).minimize(cost)
 		# 4. save defined model
 		self.defModel = [trainIn, trainOut, output, cost, optimizer]
-
-		"""
-		y = tf.nn.softmax(tf.matmul(inp, weights) + bias)
-
-		y_ = tf.placeholder(tf.float32, [None, 3])
-		cross_entropy = -tf.reduce_sum(y_*tf.log(y))
-
-		train_step = tf.train.AdamOptimizer(0.01).minimize(cross_entropy)
-		correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
-		accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
-		"""
+		
 
 	@classmethod
 	def __runNeuralNet(self):
@@ -107,7 +99,7 @@ class CreateSimpleNeuralNet:
 			18 (given there are 18 features). Test labels should be of no 
 			particular size, but in this instance I have used 'one-hot' 
 			a list of 2 where each element represents probability of label  
-		3. get saved model:
+		3. get saved tensors:
 			model defined in __defineNeuralNet is used
 		4. train model:
 			train model by epoch & batches. I have defined the sampling batch
@@ -123,31 +115,32 @@ class CreateSimpleNeuralNet:
 		sess.run(init)
 		# 2. prepare input data
 		testsShuffle = self.testset.sample(frac=1)
-		#trainOutAct = testsShuffle["fraud"].apply(lambda s: [0,1] if s == 0 else [1,0]).to_frame()
-		trainOutAct = testsShuffle["fraud"]
+		trainOutAct = testsShuffle["fraud"].apply(lambda s: [0,1] if s == 0 else [1,0]).to_frame()
 		trainAct = concat([testsShuffle[list(testsShuffle.columns[0:18])], trainOutAct], axis=1)
-		# 3. get saved model
+		# 3. get saved tensors
 		trainIn, trainOut = self.defModel[0], self.defModel[1]
 		output, costAndOpt = self.defModel[2], self.defModel[3:]
 		# 4. train model
 		for epoch in range(self.trainEpochs):
-			print("\t\tEpoch", epoch+1, "out of", self.trainEpochs)
 			epochLoss = 0
 			# determine number of batches
 			batches = int(len(testsShuffle) / self.batchSize)+1
 			for batch in range(batches):
 				startPoint, endPoint = batch*self.batchSize, (batch+1)*self.batchSize-1
-				print("\t\t\trunning batch:", batch+1, "of", batches)
-				trainActBatch = trainAct[startPoint:endPoint]
-				trainInBatch  = trainActBatch[trainAct.columns[0:18]].values.tolist()
-				trainOutBatch = trainActBatch[trainAct.columns[18:]].values.tolist()
+				#print("\t\t\trunning batch:", batch+1, "of", batches)
+				trainBatch = trainAct[startPoint:endPoint]
+				trainInBatch  = trainBatch[trainAct.columns[0:18]].values.tolist()
+				trainOutBatch = trainBatch[trainAct.columns[18:]].values.tolist()
 				# run optimization
 				loss, _ = sess.run(
 					  costAndOpt
 					, feed_dict={trainIn:trainInBatch, trainOut:trainOutBatch}
 				)
 				epochLoss += loss
-			print("\t\tEpoch loss:", epochLoss)
+			# track progress
+			if ((epoch+1) % 10 == 0):
+				print("\t\tEpoch", epoch+1, "out of", self.trainEpochs)
+				print("\t\tEpoch loss:", epochLoss)
 		# 5. save result set
 		self.defModel = [trainIn, trainOut, output]+costAndOpt 
 		# close session
@@ -179,18 +172,24 @@ class CreateSimpleNeuralNet:
 		# 2. prepare test data
 		testAct = self.testset
 		testFeatures = testAct[testAct.columns[0:18]].values.tolist()
-		testLabelAct = testAct[testAct.columns[18:]].values.tolist()
+		testLabelAct = testAct["fraud"].apply(
+			lambda s: [0,1] if s == 0 else [1,0]
+		).tolist()
 		# 3. test set predictions
-		feed_dict = {self.defModel[0]: testFeatures}
-		outTest   = sess.run(self.defModel[2], feed_dict).tolist()
-		binaryOutPred = sess.run(tf.to_float(tf.greater(outTest, 0.5))).tolist()
+		feed_dict 	  = {self.defModel[0]: testFeatures}
+		outTest 	  = sess.run(self.defModel[2], feed_dict).tolist()
+		outTestIndex  = sess.run(tf.argmax(outTest,1)).tolist()
+		outLabelIndex = sess.run(tf.argmax(testLabelAct,1)).tolist()
 		# 4. model accuracy
-		equalPred = sess.run(tf.equal(binaryOutPred, testLabelAct)).tolist()
-		accuracyMPred = sess.run(tf.reduce_mean(tf.cast(equalPred, "float")))
+		accuracy = sess.run(tf.reduce_mean(
+			tf.cast(
+				tf.equal(outTestIndex, outLabelIndex), "float")
+			)
+		)
 		print("model accuracy:")
-		print(accuracyMPred)
+		print(accuracy)
 		# 5. save predictions
-		self.resModel = [outTest, binaryOutPred, testLabelAct]
+		self.resModel = [outTest, testLabelAct]
 		sess.close()
 
 
@@ -200,7 +199,6 @@ class CreateSimpleNeuralNet:
 		return model output
 		"""
 		return self.resModel
-
 
 	@classmethod
 	def runSimpleNeuralNet(self):
