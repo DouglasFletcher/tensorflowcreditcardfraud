@@ -75,8 +75,8 @@ class CreateSimpleNeuralNet:
 		l1 = tf.add(tf.matmul(trainIn, hiddenLayer1["weights"]), hiddenLayer1["biases"])
 		l1 = tf.sigmoid(l1)
 		l2 = tf.add(tf.matmul(l1, outputLayer["weights"]), outputLayer["biases"])
-		#output = tf.sigmoid(l2)
-		output = tf.nn.softmax(l2)
+		output = tf.sigmoid(l2)
+		#output = tf.nn.softmax(l2)
 		# 3. define optimization specifications 
 		error = tf.sub(output, trainOut)
 		cost = tf.reduce_mean(tf.square(error))
