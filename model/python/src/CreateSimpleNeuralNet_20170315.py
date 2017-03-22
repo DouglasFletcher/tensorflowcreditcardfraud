@@ -58,9 +58,8 @@ class CreateSimpleNeuralNet:
 			(this will give normalized probability values e.g. [0.8, 0.2])
 		4. define optimization specifications: 
 			define optimization cost function & optimization method - tried different 
-			cost functions e.g. softmax and/or added l2 regularization (adding a penalty 
-			on the norm of the weights to the loss) - reduces overfitting weights
-			in the end the simple model wins - reduce mean squares with l2 regularization
+			cost functions e.g. softmax/squared and/or l2 regularization (adding a penalty 
+			on the norm of the weights to the loss)
 		5. save defined model:
 			defModel, now defined, can be referenced 
 		"""
@@ -83,11 +82,10 @@ class CreateSimpleNeuralNet:
 		l2 = tf.add(tf.matmul(l1, outputLayer["weights"]), outputLayer["biases"])
 		output = tf.nn.softmax(l2)
 		# 4. define optimization specifications 
-		error = tf.sub(output, tensorOut)
-		#cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, tensorOut))
-		cost = tf.reduce_mean(tf.square(error))
+		cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, tensorOut))
 		regularizers = tf.nn.l2_loss(hiddenLayer1["weights"]) + tf.nn.l2_loss(outputLayer["weights"])
 		costwithReg = tf.reduce_mean(cost + 0.01 * regularizers)
+		#costwithReg = cost
 		optimizer = tf.train.AdamOptimizer(self.learningRate).minimize(costwithReg)
 		# 5. save defined model
 		self.defModel = [tensorIn, tensorOut, output, costwithReg, optimizer]
@@ -130,7 +128,7 @@ class CreateSimpleNeuralNet:
 				train model by epoch & batches. I have defined the sampling batch
 				as just taking non-replacement sampling of all the dataset, so
 				at least every data point is sampled once. Note the data was 
-				randomly ordered dataprocessing.
+				randomly ordered in dataprocessing.
 			4.2 report progress of model:
 				4.2.1 report epoch loss:
 					print epoch loss
@@ -168,57 +166,26 @@ class CreateSimpleNeuralNet:
 				)
 				epochLoss += loss
 			# 4.2 report progress of model
-			if ((epoch+1) % 10 == 0):
+			if ((epoch+1) % 10 == 0) or (epoch == self.trainEpochs):
 				# 4.2.1 report epoch loss
 				print("\t\tEpoch", epoch+1, "out of", self.trainEpochs)
 				print("\t\t\tEpoch loss:", epochLoss)
 				# 4.2.2 report training accuracy
 				outTrain = self.__calcPredAccuracy(sess, defModel, features, labels, "Epoch training")
 				# 4.2.3 report testing accuracy
-				testSample = self.testset.sample(frac=0.2)
+				testSample = self.testset.sample(frac=0.1)
 				testFeatures = testSample[testSample.columns[0:18]].values.tolist()
 				testLabels   = testSample.ix[:,18].values.tolist()
-				outTrain = self.__calcPredAccuracy(sess, defModel, testFeatures, testLabels, "Epoch testing")
-		# 5. save result set
-		self.defModel = defModel 
-		sess.close()
-
-
-	@classmethod
-	def __testNeuralNet(self):
-		"""
-		test defined model
-		1. define tensor flow session
-		2. prepare test data:
-			get test data labels & features
-		3. prediction on testset:
-			use the test data & the trained model to test for the 
-			accuracy of the prediction
-		4. save predictions:
-			output results
-		"""
-		print("\ttesting neural network")
-		# 1. define tensorflow session
-		sess = tf.Session()
-		init = tf.global_variables_initializer()
-		sess.run(init)
-		# 2. prepare test data
-		testFeatures = self.testset[self.testset.columns[0:18]].values.tolist()
-		testLabels   = self.testset.ix[:,18].values.tolist()
-		# 3. report testing accuracy
-		testOut = self.__calcPredAccuracy(sess, self.defModel, testFeatures, testLabels, "Total testing")
-		'''
-		# 3. prediction on testset
-		feed_dict = {self.defModel[0]: testFeatures}
-		testPrediction = sess.run(self.defModel[2], feed_dict).tolist()
-		# 4. model accuracy
-		accuracy = sess.run(tf.reduce_mean(
-			tf.cast(tf.equal(tf.argmax(testPrediction,1), tf.argmax(testLabels,1)), "float")
-		))
-		print("\t\tModel accuracy:", round(accuracy *100,2), "%")
-		'''
-		# 4. save predictions
-		self.resModel = [testOut[0], testLabels]
+				outTest = self.__calcPredAccuracy(sess, defModel, testFeatures, testLabels, "Epoch testing")
+		# 5. report testing accuracy
+		print("\ttesting accuracy of neural network")
+		testTotSample 	= self.testset.sample(frac=1)
+		testTotFeatures = testTotSample[testTotSample.columns[0:18]].values.tolist()
+		testTotLabels   = testTotSample.ix[:,18].values.tolist()
+		testTotOut = self.__calcPredAccuracy(sess, defModel, testTotFeatures, testTotLabels, "Total testing")
+		# 6. save model & results
+		self.defModel = defModel
+		self.resModel = [testTotOut[0], testTotLabels]		
 		sess.close()
 
 
@@ -229,6 +196,7 @@ class CreateSimpleNeuralNet:
 		"""
 		return self.resModel
 
+
 	@classmethod
 	def runSimpleNeuralNet(self):
 		"""
@@ -237,6 +205,5 @@ class CreateSimpleNeuralNet:
 		print("\ncreating simple neuralnet")
 		self.__defineNeuralNet()
 		self.__runNeuralNet()
-		self.__testNeuralNet()
 		result = self.__getOutput()
 		return result
