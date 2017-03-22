@@ -57,6 +57,7 @@ class CreateDataset:
 		# create labels
 		print(("\tcreating %sdata labels") %(self.datasetIn.name))
 		fraud = Series(self.datasetIn["Class"], name="fraud", dtype=float32)
+		onehot = fraud.apply(lambda s: [0,1] if s == 0 else [1,0])
 
 		# create dataset
 		allTrans = concat(
@@ -64,13 +65,15 @@ class CreateDataset:
 				  v01trans, v02trans, v03trans, v04trans, v05trans, v06trans
 				, v07trans, v09trans, v10trans, v11trans, v12trans, v14trans
 				, v16trans, v17trans, v18trans, v19trans, v21trans, v27trans
-				, fraud
+				, onehot
 			]
 			, axis=1
 		).reset_index()
 		# drop index
 		del allTrans["index"]
 		allTrans.name = self.datasetIn.name + "Trans"
+		# randomize
+		allTrans = allTrans.sample(frac=1)
 		# save
 		self.datasetOt = allTrans
 
@@ -91,5 +94,7 @@ class CreateDataset:
 		print(("\ncreating %s transform dataset") %(self.datasetIn.name))
 		self.__createTransformations()
 		return self.__getDataTrans()
+
+
 
 
