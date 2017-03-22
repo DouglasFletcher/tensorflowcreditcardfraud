@@ -57,8 +57,10 @@ class CreateSimpleNeuralNet:
 			on l1 output with weights & biases but then softmax transformation 
 			(this will give normalized probability values e.g. [0.8, 0.2])
 		4. define optimization specifications: 
-			define optimization cost function & optimization method - prebuilt 
-			methods from tensorflow
+			define optimization cost function & optimization method - tried different 
+			cost functions e.g. softmax and/or added l2 regularization (adding a penalty 
+			on the norm of the weights to the loss) - reduces overfitting weights
+			in the end the simple model wins - reduce mean squares with l2 regularization
 		5. save defined model:
 			defModel, now defined, can be referenced 
 		"""
@@ -81,11 +83,36 @@ class CreateSimpleNeuralNet:
 		l2 = tf.add(tf.matmul(l1, outputLayer["weights"]), outputLayer["biases"])
 		output = tf.nn.softmax(l2)
 		# 4. define optimization specifications 
-		cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, tensorOut))
-		optimizer = tf.train.AdamOptimizer(self.learningRate).minimize(cost)
+		error = tf.sub(output, tensorOut)
+		#cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(output, tensorOut))
+		cost = tf.reduce_mean(tf.square(error))
+		regularizers = tf.nn.l2_loss(hiddenLayer1["weights"]) + tf.nn.l2_loss(outputLayer["weights"])
+		costwithReg = tf.reduce_mean(cost + 0.01 * regularizers)
+		optimizer = tf.train.AdamOptimizer(self.learningRate).minimize(costwithReg)
 		# 5. save defined model
-		self.defModel = [tensorIn, tensorOut, output, cost, optimizer]
-		
+		self.defModel = [tensorIn, tensorOut, output, costwithReg, optimizer]
+
+
+	@staticmethod
+	def __calcPredAccuracy(inSess, inDefModel, inFeatures, inLabels, setIn):
+		"""
+		static method to calculate prediction accuracy
+		1. predict labels:
+			using current model weights model model prediction
+		2. predict accuracy:
+			calculate prediction on accuracy
+		"""
+		# 1. predict label
+		feedDict = {inDefModel[0]: inFeatures}
+		pred = inSess.run(inDefModel[2], feedDict).tolist()
+		# 2. predict accuracy
+		accuracy = inSess.run(tf.reduce_mean(
+			tf.cast(tf.equal(tf.argmax(pred,1), tf.argmax(inLabels,1)
+		), "float")))
+		print("\t\t\t",setIn,"accuracy:",round(accuracy*100,2),"%")
+		# 3. return predictions
+		return [feedDict, pred, accuracy]
+
 
 	@classmethod
 	def __runNeuralNet(self):
@@ -98,11 +125,20 @@ class CreateSimpleNeuralNet:
 			create a handel to features and labels as reference  
 		3. get saved tensors:
 			tensors defined in __defineNeuralNet
-		4. train model:
-			train model by epoch & batches. I have defined the sampling batch
-			as just taking non-replacement sampling of all the dataset, so
-			at least every data point is sampled once. Note the data was 
-			randomly ordered dataprocessing.
+		4. train model & report progress:
+			4.1 train model: 
+				train model by epoch & batches. I have defined the sampling batch
+				as just taking non-replacement sampling of all the dataset, so
+				at least every data point is sampled once. Note the data was 
+				randomly ordered dataprocessing.
+			4.2 report progress of model:
+				4.2.1 report epoch loss:
+					print epoch loss
+				4.2.2 report training accuracy:
+					print training accuracy
+				4.2.3 report testing accuracy:
+					print training accuracy on test set by 
+					taking a random sample
 		5. save results:
 			train model parameters saved to be used for test data 
 			to check accuracy
@@ -112,44 +148,40 @@ class CreateSimpleNeuralNet:
 		sess = tf.Session()
 		init = tf.global_variables_initializer()
 		sess.run(init)
-		# 2. prepare input data
+		# 2. prepare test & train input data
 		features = self.trainset[self.trainset.columns[0:18]].values.tolist()
 		labels   = self.trainset.ix[:,18].values.tolist()
 		# 3. get saved tensors
 		defModel = self.defModel
-		# 4. train model
+		# 4. train & report progress of model
 		for epoch in range(self.trainEpochs):
+			# 4.1 train model
 			epochLoss = 0
-			# determine number of batches
 			batches = int(len(self.trainset) / self.batchSize)+1
 			for batch in range(batches):
-				# define batch sample range
 				batchSample = [batch*self.batchSize, (batch+1)*self.batchSize-1]
-				# batch labels & features
 				labelsBatch  = labels[batchSample[0]:batchSample[1]] 
 				featureBatch = features[batchSample[0]:batchSample[1]] 
-				# run optimization
 				loss, _ = sess.run(
 					  defModel[3:]
 					, feed_dict={defModel[0]:featureBatch, defModel[1]:labelsBatch}
 				)
 				epochLoss += loss
-			# track loss & accuracy
+			# 4.2 report progress of model
 			if ((epoch+1) % 10 == 0):
-				# loss function
+				# 4.2.1 report epoch loss
 				print("\t\tEpoch", epoch+1, "out of", self.trainEpochs)
 				print("\t\t\tEpoch loss:", epochLoss)
-				# epoch accuracy
-				feedDictEpoch = {defModel[0]: features}
-				epochPrediction = sess.run(defModel[2], feedDictEpoch).tolist()
-				accuracy = sess.run(tf.reduce_mean(
-						tf.cast(tf.equal(tf.argmax(epochPrediction,1), tf.argmax(labels,1)
-						),"float")))
-				print("\t\t\tEpoch Model accuracy:",round(accuracy*100,2),"%")
+				# 4.2.2 report training accuracy
+				outTrain = self.__calcPredAccuracy(sess, defModel, features, labels, "Epoch training")
+				# 4.2.3 report testing accuracy
+				testSample = self.testset.sample(frac=0.2)
+				testFeatures = testSample[testSample.columns[0:18]].values.tolist()
+				testLabels   = testSample.ix[:,18].values.tolist()
+				outTrain = self.__calcPredAccuracy(sess, defModel, testFeatures, testLabels, "Epoch testing")
 		# 5. save result set
 		self.defModel = defModel 
 		sess.close()
-
 
 
 	@classmethod
@@ -162,11 +194,7 @@ class CreateSimpleNeuralNet:
 		3. prediction on testset:
 			use the test data & the trained model to test for the 
 			accuracy of the prediction
-		4. model accuracy:
-			use argmax get index of most likely prediction e.g. [0.2,0.8] => index 
-			1 of actual vs predicted to check for model accuracy - same calculation 
-			as epoch prediction 
-		5. save predictions:
+		4. save predictions:
 			output results
 		"""
 		print("\ttesting neural network")
@@ -177,6 +205,9 @@ class CreateSimpleNeuralNet:
 		# 2. prepare test data
 		testFeatures = self.testset[self.testset.columns[0:18]].values.tolist()
 		testLabels   = self.testset.ix[:,18].values.tolist()
+		# 3. report testing accuracy
+		testOut = self.__calcPredAccuracy(sess, self.defModel, testFeatures, testLabels, "Total testing")
+		'''
 		# 3. prediction on testset
 		feed_dict = {self.defModel[0]: testFeatures}
 		testPrediction = sess.run(self.defModel[2], feed_dict).tolist()
@@ -185,8 +216,9 @@ class CreateSimpleNeuralNet:
 			tf.cast(tf.equal(tf.argmax(testPrediction,1), tf.argmax(testLabels,1)), "float")
 		))
 		print("\t\tModel accuracy:", round(accuracy *100,2), "%")
-		# 5. save predictions
-		self.resModel = [testPrediction, testLabels]
+		'''
+		# 4. save predictions
+		self.resModel = [testOut[0], testLabels]
 		sess.close()
 
 

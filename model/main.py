@@ -49,7 +49,7 @@ trainTrans = CreateDataset(train).runTransforms()
 # =======================
 # create simple NeuralNet
 # =======================
-neuralNet = CreateSimpleNeuralNet(trainTrans, testsTrans, 200, 50000).runSimpleNeuralNet()
+neuralNet = CreateSimpleNeuralNet(trainTrans, testsTrans, 100, 50000).runSimpleNeuralNet()
 
 
 
